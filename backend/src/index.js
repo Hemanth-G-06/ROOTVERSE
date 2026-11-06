@@ -2,11 +2,16 @@
 // Agriverse360 backend entrypoint with WS + MQTT bridge integration and irrigation controller
 'use strict';
 
+// ⚠️ MUST be first — load .env before any module reads process.env at module-level
+const dotenv = require('dotenv');
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(process.cwd(), 'backend/.env') });
+dotenv.config(); // fallback: also try CWD-relative .env
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const { spawn } = require('child_process');
-const path = require('path');
 const axios = require('axios');
 const mockMLService = require('./mockMLService');
 const { connectDB, disconnectDB } = require('./config/database');
@@ -14,16 +19,13 @@ const mongoose = require('mongoose'); // used in health check
 const http = require('http');
 const irrigationDebug = require('./routes/irrigationDebug');
 
-// Services & bridges
+// Services & bridges (required AFTER dotenv so env vars are ready)
 const startWs = require('./wsServer');         // startWs(server, opts) -> { wss, broadcast }
 const { start: startMqttBridge } = require('./mqttBridge'); // startMqttBridge(opts) -> { client, stop }
 const { startController } = require('./services/controllerService'); // the backend auto controller (MQTT subscriber + publisher)
 
-// Load environment variables
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 5003;
+const PORT = process.env.PORT || 5001;
 
 // ML Service management
 let mlServiceProcess = null;
@@ -37,7 +39,11 @@ let mqttBridgeInstance = null;
 let lastTelemetry = null;
 
 // ----- ML Service helpers (unchanged behavior) -----
+let mlStartingOrRunning = false;
+
 function startMockMLService() {
+  if (mlStartingOrRunning) return;
+  mlStartingOrRunning = true;
   console.log('🤖 Starting Mock ML Service on port', ML_SERVICE_PORT);
 
   try {
@@ -57,7 +63,7 @@ function startMockMLService() {
     });
 
     // Store reference for cleanup (mock server exposes .close())
-    mlServiceProcess = { close: () => mockServer.close() };
+    mlServiceProcess = { close: () => { mockServer.close(); mlStartingOrRunning = false; } };
 
   } catch (error) {
     console.error('❌ Failed to start mock ML service:', error);
@@ -80,68 +86,72 @@ function stopMLService() {
     console.warn('⚠️ Error stopping ML service:', err && err.message);
   }
   mlServiceProcess = null;
+  mlStartingOrRunning = false;
 }
 
 function startMLService() {
   console.log('🚀 Starting ML Service...');
+  let triggered = false;
 
-  // If python available, try spawn; otherwise fallback to mock
-  const pythonCheck = spawn('python3', ['--version']);
-  pythonCheck.on('close', (code) => {
-    const pythonCmd = code === 0 ? 'python3' : 'python';
-    // Quick package check (best-effort)
-    const packageCheck = spawn(pythonCmd, ['-c', 'import flask, tensorflow, PIL, numpy, cv2; print("OK")'], {
-      cwd: path.dirname(ML_SERVICE_PATH)
-    });
-
-    packageCheck.on('close', (packageCode) => {
-      if (packageCode !== 0) {
-        console.log('⚠️ ML Service dependencies not installed or Python packages missing. Starting mock ML service.');
-        console.log('💡 To enable full ML functionality: cd ml_service && pip install -r requirements.txt');
-        startMockMLService();
-        return;
-      }
-
-      // Start real python ML service
-      try {
-        mlServiceProcess = spawn(pythonCmd, [ML_SERVICE_PATH], {
-          cwd: path.dirname(ML_SERVICE_PATH),
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
-
-        mlServiceProcess.stdout.on('data', (d) => console.log(`📊 ML Service: ${d.toString().trim()}`));
-        mlServiceProcess.stderr.on('data', (d) => console.error(`❌ ML Service Error: ${d.toString().trim()}`));
-        mlServiceProcess.on('close', (c) => {
-          console.log(`🔴 ML Service exited with code ${c}`);
-          mlServiceProcess = null;
-        });
-
-        // Wait a bit then check health
-        setTimeout(checkMLServiceHealth, 3000);
-      } catch (err) {
-        console.error('❌ Failed to spawn ML service, starting mock fallback:', err && err.message);
-        startMockMLService();
-      }
-    });
-
-    packageCheck.on('error', (err) => {
-      console.warn('⚠️ Package check failed:', err && err.message);
-      startMockMLService();
-    });
-  });
-
-  pythonCheck.on('error', (err) => {
-    console.warn('⚠️ Python not found or cannot execute. Starting mock ML service.', err && err.message);
+  const runMock = (reason) => {
+    if (triggered) return;
+    triggered = true;
+    if (reason) console.log(reason);
     startMockMLService();
-  });
+  };
 
-  // Safety fallback: if mlServiceProcess not running after some time, start mock
+  try {
+    const pythonCheck = spawn('python', ['--version']);
+    pythonCheck.on('error', (err) => runMock('⚠️ Python not found or cannot execute. Starting mock ML service.'));
+    pythonCheck.on('close', (code) => {
+      if (code !== 0) return runMock('⚠️ Python check returned non-zero code. Starting mock ML service.');
+
+      try {
+        const packageCheck = spawn('python', ['-c', 'import flask, tensorflow, PIL, numpy, cv2; print("OK")'], {
+          cwd: path.dirname(ML_SERVICE_PATH)
+        });
+        packageCheck.on('error', () => runMock('⚠️ Package check failed. Starting mock ML service.'));
+        packageCheck.on('close', (packageCode) => {
+          if (packageCode !== 0) {
+            console.log('⚠️ ML Service dependencies not installed or Python packages missing. Starting mock ML service.');
+            console.log('💡 To enable full ML functionality: cd ml_service && pip install -r requirements.txt');
+            return runMock();
+          }
+
+          try {
+            mlServiceProcess = spawn('python', [ML_SERVICE_PATH], {
+              cwd: path.dirname(ML_SERVICE_PATH),
+              stdio: ['pipe', 'pipe', 'pipe']
+            });
+            mlStartingOrRunning = true;
+            mlServiceProcess.stdout.on('data', (d) => console.log(`📊 ML Service: ${d.toString().trim()}`));
+            mlServiceProcess.stderr.on('data', (d) => console.error(`❌ ML Service Error: ${d.toString().trim()}`));
+            mlServiceProcess.on('close', (c) => {
+              console.log(`🔴 ML Service exited with code ${c}`);
+              mlServiceProcess = null;
+              mlStartingOrRunning = false;
+            });
+            setTimeout(checkMLServiceHealth, 3000);
+          } catch (err) {
+            console.error('❌ Failed to spawn ML service, starting mock fallback:', err && err.message);
+            runMock();
+          }
+        });
+      } catch (err) {
+        runMock('⚠️ Failed to launch package check. Starting mock ML service.');
+      }
+    });
+  } catch (err) {
+    runMock('⚠️ Error launching python check. Starting mock ML service.');
+  }
+
+  // Safety fallback
   setTimeout(() => {
-    if (!mlServiceProcess) {
+    if (!mlServiceProcess && !triggered) {
       console.log('⚠️ ML service did not start in expected time, starting mock service.');
-      startMockMLService();
+      runMock();
     }
-  }, 10000);
+  }, 8000);
 }
 
 async function checkMLServiceHealth() {
@@ -264,6 +274,12 @@ app.get('/', (req, res) => {
 
 // Mount other routes (upload, plant, etc.)
 try {
+  const rootpulseRoutes = require('./routes/rootpulse');
+  app.use('/api', rootpulseRoutes);
+  console.log('✅ RootPulse 3D Intelligence routes mounted successfully');
+  const telemetryRoutes = require('./routes/telemetry');
+  app.use('/api/telemetry', telemetryRoutes);
+  console.log('✅ Live Telemetry routes mounted successfully');
   const uploadRoutes = require('./routes/upload');
   const plantRoutes = require('./routes/plant');
   app.use('/api', uploadRoutes);
@@ -302,7 +318,7 @@ const startServer = async () => {
     }
 
     // Start MQTT Bridge
-    const MQTT_URL = process.env.MQTT_URL || 'mqtt://10.1.1.113:1883';
+    const MQTT_URL = process.env.MQTT_URL || 'mqtt://10.82.161.183:1883';
     const MQTT_USER = process.env.MQTT_USER || 'esp32com';
     const MQTT_PASS = process.env.MQTT_PASS || 'esp32aug';
     const telemetryTopics = (process.env.TELEMETRY_TOPICS || 'esp32/telemetry').split(',').map(s => s.trim());

@@ -1,279 +1,264 @@
 // frontend/src/hooks/useWebsocketTelemetry.js
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mqtt from 'mqtt';
 
 /**
- * Hybrid telemetry hook with stable online/offline logic.
- * Tries direct MQTT-over-WS first (REACT_APP_MQTT_WS_URL),
- * falls back to backend WS (/ws).
+ * Universal Telemetry Hook with Robust Multi-Transport Auto-Fallback:
+ * 1. Direct MQTT-over-WebSocket at ws://10.76.50.208:8080 (and ws://10.76.50.208:8080/mqtt)
+ * 2. Raw Native WebSocket at ws://10.76.50.208:8080
+ * 3. Backend WebSocket at ws://localhost:5001/ws
+ * 4. Active REST Polling fallback to /api/telemetry/latest every 2s
  *
- * Returns: { telemetry, wsConnected, lastMsgTs, source }
- *  - wsConnected: true when recent message arrived OR transport is connected (with grace)
- *  - source: 'mqtt-ws' | 'backend-ws' | null
+ * Automatically falls back to whichever transport is alive and receiving packets!
  */
 
+// Lenient sanitizer for incoming keys (handles "humidit y", " mqtt", string numbers, etc.)
+function sanitizeTelemetry(raw) {
+  if (!raw) return null;
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try {
+      obj = JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Unwrap envelope if nested
+  if (obj && obj.data && typeof obj.data === 'object') {
+    obj = obj.data;
+  }
+
+  if (typeof obj !== 'object' || obj === null) return null;
+
+  const clean = {};
+  for (const [k, v] of Object.entries(obj)) {
+    clean[String(k).replace(/\s+/g, '').toLowerCase()] = v;
+  }
+
+  const parseNum = (val) => {
+    if (val === undefined || val === null) return null;
+    const n = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.-]/g, ''));
+    return !isNaN(n) && isFinite(n) ? n : null;
+  };
+
+  const temp = parseNum(clean['temperature'] ?? clean['temp'] ?? clean['t']);
+  const hum = parseNum(clean['humidity'] ?? clean['hum'] ?? clean['h']);
+  const rawSoil = clean['soilpct'] ?? clean['soil_pct'] ?? clean['soilmoisture'] ?? clean['soil_moisture'] ?? clean['soilraw'] ?? clean['soil_raw'] ?? clean['soil'] ?? clean['moisture'] ?? clean['s'];
+  let soil = parseNum(rawSoil);
+  if (soil !== null && soil > 100) {
+    // If raw 12-bit ADC value was sent, accurately map from capacitive curve (Dry ~3000, Wet ~1300)
+    soil = Math.round(Math.max(0, Math.min(100, ((3000 - soil) / (3000 - 1300)) * 100)));
+  }
+  const ldr = parseNum(clean['ldrpct'] ?? clean['ldr'] ?? clean['light'] ?? clean['l']);
+
+  const r1Raw = clean['relay1'] ?? clean['r1'] ?? 0;
+  const r2Raw = clean['relay2'] ?? clean['r2'] ?? 0;
+  const r1 = (String(r1Raw).toUpperCase() === 'ON' || Number(r1Raw) === 1) ? 1 : 0;
+  const r2 = (String(r2Raw).toUpperCase() === 'ON' || Number(r2Raw) === 1) ? 1 : 0;
+
+  return {
+    deviceId: String(clean['deviceid'] ?? clean['device'] ?? 'esp32-01'),
+    temperature: temp !== null ? +(temp.toFixed(1)) : null,
+    humidity: hum !== null ? +(hum.toFixed(1)) : null,
+    soilPct: soil !== null ? Math.round(soil) : null,
+    ldrPct: ldr !== null ? Math.round(ldr) : null,
+    relay1: r1,
+    relay2: r2,
+    mqtt: clean['mqtt'] ? 1 : 0,
+    raw: obj,
+    timestamp: new Date()
+  };
+}
+
 export default function useWebsocketTelemetry() {
-  // public state
   const [telemetry, setTelemetry] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [lastMsgTs, setLastMsgTs] = useState(null);
-  const [source, setSource] = useState(null);
+  const [source, setSource] = useState('Connecting...');
 
-  // refs for clients / timers / internal flags
   const mqttClientRef = useRef(null);
+  const externalWsRef = useRef(null);
   const backendWsRef = useRef(null);
-
   const lastMsgTsRef = useRef(null);
-  const mqttConnectedRef = useRef(false);
-  const backendConnectedRef = useRef(false);
+  const pollIntervalRef = useRef(null);
 
-  const mqttCloseTimerRef = useRef(null);
-  const backendCloseTimerRef = useRef(null);
-  const messageStaleTimerRef = useRef(null);
-  const mqttRetryTimerRef = useRef(null);
-  const backendRetryTimerRef = useRef(null);
+  const onPacketReceived = useCallback((raw, transportName) => {
+    const data = sanitizeTelemetry(raw);
+    if (!data) return;
 
-  // configuration
-  const MESSAGE_TTL_MS = 12_000; // consider recent message within 12s
-  const CLOSE_GRACE_MS = 4_000;  // wait 4s after a close before marking transport disconnected
-  const MQTT_RETRY_MS = 4_000;
-  const BACKEND_RETRY_MS = 3_000;
+    // Verify it contains at least one sensor reading
+    if (data.soilPct === null && data.temperature === null && data.humidity === null && data.ldrPct === null) {
+      return;
+    }
 
-  // compute and update public wsConnected state based on rules:
-  // online if recent message OR any transport currently considered connected
-  function computeOnlineAndUpdate() {
-    const now = Date.now();
-    const hasRecentMsg = lastMsgTsRef.current && (now - lastMsgTsRef.current <= MESSAGE_TTL_MS);
-    const transportConnected = !!(mqttConnectedRef.current || backendConnectedRef.current);
-    const online = hasRecentMsg || transportConnected;
-    setWsConnected(online);
-  }
-
-  // called when any valid message is received
-  function onTelemetryMessage(data) {
     const now = Date.now();
     lastMsgTsRef.current = now;
     setLastMsgTs(now);
     setTelemetry(data);
-
-    // prefer the source of latest message
-    // (caller should set source appropriately before invoking this)
-    // refresh online state and reset stale timer
-    computeOnlineAndUpdate();
-
-    if (messageStaleTimerRef.current) {
-      clearTimeout(messageStaleTimerRef.current);
-      messageStaleTimerRef.current = null;
-    }
-    messageStaleTimerRef.current = setTimeout(() => {
-      // stale timer expired — recompute (may mark offline if no transport)
-      messageStaleTimerRef.current = null;
-      computeOnlineAndUpdate();
-    }, MESSAGE_TTL_MS + 100); // small margin
-  }
+    setWsConnected(true);
+    setSource(transportName);
+  }, []);
 
   useEffect(() => {
     let active = true;
 
-    const MQTT_URL = process.env.REACT_APP_MQTT_WS_URL || null; // e.g. ws://10.1.1.113:8080
-    const MQTT_USER = process.env.REACT_APP_MQTT_USER || undefined;
-    const MQTT_PASS = process.env.REACT_APP_MQTT_PASS || undefined;
-    const BACKEND_HOST = process.env.REACT_APP_API_HOST || window.location.host;
-    const BACKEND_WS_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${BACKEND_HOST}/ws`;
+    // 1. External WebSocket Server URL (from user instruction: 10.76.50.208:8080)
+    const EXTERNAL_WS_URLS = [
+      'ws://10.76.50.208:8080/mqtt',
+      'ws://10.76.50.208:8080',
+      'ws://10.82.161.183:8080/mqtt'
+    ];
 
-    function clearAllTimers() {
-      if (mqttCloseTimerRef.current) { clearTimeout(mqttCloseTimerRef.current); mqttCloseTimerRef.current = null; }
-      if (backendCloseTimerRef.current) { clearTimeout(backendCloseTimerRef.current); backendCloseTimerRef.current = null; }
-      if (messageStaleTimerRef.current) { clearTimeout(messageStaleTimerRef.current); messageStaleTimerRef.current = null; }
-      if (mqttRetryTimerRef.current) { clearTimeout(mqttRetryTimerRef.current); mqttRetryTimerRef.current = null; }
-      if (backendRetryTimerRef.current) { clearTimeout(backendRetryTimerRef.current); backendRetryTimerRef.current = null; }
+    // Backend API & WS URLs
+    const apiHost = process.env.REACT_APP_API_HOST || 'http://localhost:5001';
+    const cleanHost = apiHost.replace(/^https?:\/\//i, '');
+    const isHttps = window.location.protocol === 'https:' || apiHost.startsWith('https:');
+    const BACKEND_WS_URL = `${isHttps ? 'wss' : 'ws'}://${cleanHost}/ws`;
+    const HTTP_POLL_URL = `${apiHost.replace(/\/+$/, '')}/api/telemetry/latest`;
+
+    // ------------------------------------------------------------------------
+    // Transport A: Direct MQTT over WebSocket (tries 10.76.50.208:8080/mqtt)
+    // ------------------------------------------------------------------------
+    function connectMqttOverWs() {
+      if (!active) return;
+      try {
+        if (mqttClientRef.current && mqttClientRef.current.connected) return;
+
+        const client = mqtt.connect('ws://10.76.50.208:8080/mqtt', {
+          clientId: `ag360_ui_${Math.random().toString(16).slice(2, 8)}`,
+          username: process.env.REACT_APP_MQTT_USER || 'esp32com',
+          password: process.env.REACT_APP_MQTT_PASS || 'esp32aug',
+          reconnectPeriod: 5000,
+          connectTimeout: 8000,
+          clean: true
+        });
+
+        mqttClientRef.current = client;
+
+        client.on('connect', () => {
+          if (!active) return;
+          console.log('[useWebsocketTelemetry] Connected to MQTT-WS at 10.76.50.208:8080');
+          client.subscribe('esp32/telemetry', { qos: 0 });
+          client.subscribe('esp32/#', { qos: 0 });
+        });
+
+        client.on('message', (topic, payload) => {
+          if (!active) return;
+          onPacketReceived(payload.toString(), 'MQTT-WS (10.76.50.208)');
+        });
+
+        client.on('error', () => {});
+        client.on('close', () => {});
+      } catch (e) {}
     }
 
-    // ---------- Backend WS (fallback) ----------
-    function connectBackendWs() {
+    // ------------------------------------------------------------------------
+    // Transport B: Raw WebSocket connection to 10.76.50.208:8080
+    // ------------------------------------------------------------------------
+    function connectRawExternalWs() {
       if (!active) return;
-      // if already open or opening, skip
       try {
-        const existing = backendWsRef.current;
-        if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
+        if (externalWsRef.current && (externalWsRef.current.readyState === WebSocket.OPEN || externalWsRef.current.readyState === WebSocket.CONNECTING)) {
           return;
         }
-      } catch (e) {}
 
+        const ws = new WebSocket('ws://10.76.50.208:8080');
+        externalWsRef.current = ws;
+
+        ws.onopen = () => {
+          if (!active) return;
+          console.log('[useWebsocketTelemetry] Raw WebSocket connected to 10.76.50.208:8080');
+        };
+
+        ws.onmessage = (evt) => {
+          if (!active) return;
+          onPacketReceived(evt.data, 'WebSocket (10.76.50.208:8080)');
+        };
+
+        ws.onclose = () => {
+          if (active) setTimeout(connectRawExternalWs, 5000);
+        };
+        ws.onerror = () => {};
+      } catch (e) {
+        if (active) setTimeout(connectRawExternalWs, 5000);
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // Transport C: Backend WebSocket at ws://localhost:5001/ws
+    // ------------------------------------------------------------------------
+    function connectBackendWs() {
+      if (!active) return;
       try {
+        if (backendWsRef.current && (backendWsRef.current.readyState === WebSocket.OPEN || backendWsRef.current.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+
         const ws = new WebSocket(BACKEND_WS_URL);
         backendWsRef.current = ws;
 
         ws.onopen = () => {
           if (!active) return;
-          backendConnectedRef.current = true;
-          // cancel any close timer
-          if (backendCloseTimerRef.current) { clearTimeout(backendCloseTimerRef.current); backendCloseTimerRef.current = null; }
-          setSource((prev) => prev || 'backend-ws'); // prefer other source if already set by mqtt
-          computeOnlineAndUpdate();
+          console.log('[useWebsocketTelemetry] Backend WebSocket connected to', BACKEND_WS_URL);
         };
 
         ws.onmessage = (evt) => {
           if (!active) return;
-          let msg = null;
-          try { msg = JSON.parse(evt.data); } catch (e) { msg = null; }
-          if (!msg) return;
-          if (msg.topic === 'esp32/telemetry' && msg.data) {
-            setSource('backend-ws');
-            onTelemetryMessage(msg.data);
-          } else if (msg.temperature !== undefined) {
-            setSource('backend-ws');
-            onTelemetryMessage(msg);
-          }
+          onPacketReceived(evt.data, 'Backend WS (/ws)');
         };
 
-        ws.onclose = (ev) => {
-          if (!active) return;
-          // schedule marking backend disconnected after small grace
-          if (backendCloseTimerRef.current) clearTimeout(backendCloseTimerRef.current);
-          backendCloseTimerRef.current = setTimeout(() => {
-            backendConnectedRef.current = false;
-            backendCloseTimerRef.current = null;
-            computeOnlineAndUpdate();
-          }, CLOSE_GRACE_MS);
-
-          // schedule reconnect attempt
-          if (backendRetryTimerRef.current) clearTimeout(backendRetryTimerRef.current);
-          backendRetryTimerRef.current = setTimeout(() => {
-            backendRetryTimerRef.current = null;
-            if (active) connectBackendWs();
-          }, BACKEND_RETRY_MS);
+        ws.onclose = () => {
+          if (active) setTimeout(connectBackendWs, 3000);
         };
-
-        ws.onerror = (err) => {
-          if (!active) return;
-          // don't flip state directly here; let close timer handle marking disconnected after grace
-          console.warn('[useWebsocketTelemetry] backend ws error', err && err.message);
-        };
+        ws.onerror = () => {};
       } catch (e) {
-        // schedule retry
-        if (backendRetryTimerRef.current) clearTimeout(backendRetryTimerRef.current);
-        backendRetryTimerRef.current = setTimeout(() => {
-          backendRetryTimerRef.current = null;
-          if (active) connectBackendWs();
-        }, BACKEND_RETRY_MS);
+        if (active) setTimeout(connectBackendWs, 4000);
       }
     }
 
-    // ---------- Direct MQTT-over-WS (preferred) ----------
-    function connectMqttWs() {
+    // ------------------------------------------------------------------------
+    // Transport D: Active REST Polling Fallback (/api/telemetry/latest)
+    // ------------------------------------------------------------------------
+    async function pollTelemetryHttp() {
       if (!active) return;
-      if (!MQTT_URL) {
-        // no broker configured -> fallback to backend
-        connectBackendWs();
-        return;
-      }
-
-      // if already connected/connecting skip
-      if (mqttClientRef.current && mqttClientRef.current.connected) return;
-
-      const clientId = `ag360-ui-${Math.random().toString(16).substr(2, 8)}`;
-      const opts = {
-        clientId,
-        username: MQTT_USER,
-        password: MQTT_PASS,
-        reconnectPeriod: 4000,
-        keepalive: 30,
-        clean: true,
-      };
-
       try {
-        const client = mqtt.connect(MQTT_URL, opts);
-        mqttClientRef.current = client;
-
-        client.on('connect', () => {
-          if (!active) return;
-          // mark transport connected
-          mqttConnectedRef.current = true;
-          if (mqttCloseTimerRef.current) { clearTimeout(mqttCloseTimerRef.current); mqttCloseTimerRef.current = null; }
-          // subscribe and compute online
-          try {
-            client.subscribe('esp32/telemetry', { qos: 0 }, (err) => {
-              if (err) console.warn('[useWebsocketTelemetry] mqtt subscribe err', err);
-            });
-          } catch (e) {}
-          computeOnlineAndUpdate();
-          // prefer mqtt source once it connects
-          setSource('mqtt-ws');
-        });
-
-        client.on('message', (topic, payload) => {
-          if (!active) return;
-          let data = null;
-          try { data = JSON.parse(payload.toString()); } catch (e) { data = null; }
-          if (!data) return;
-          setSource('mqtt-ws');
-          onTelemetryMessage(data);
-        });
-
-        client.on('close', () => {
-          if (!active) return;
-          // schedule marking mqtt transport disconnected after CLOSE_GRACE_MS
-          if (mqttCloseTimerRef.current) clearTimeout(mqttCloseTimerRef.current);
-          mqttCloseTimerRef.current = setTimeout(() => {
-            mqttConnectedRef.current = false;
-            mqttCloseTimerRef.current = null;
-            computeOnlineAndUpdate();
-          }, CLOSE_GRACE_MS);
-
-          // schedule backend fallback / reconnect attempt
-          if (mqttRetryTimerRef.current) clearTimeout(mqttRetryTimerRef.current);
-          mqttRetryTimerRef.current = setTimeout(() => {
-            mqttRetryTimerRef.current = null;
-            // only attempt backend fallback if mqtt still not connected
-            if (!(mqttClientRef.current && mqttClientRef.current.connected)) {
-              connectBackendWs();
-            }
-          }, 1500);
-        });
-
-        client.on('error', (err) => {
-          if (!active) return;
-          // don't set offline immediately; let close handler & grace window handle state
-          console.warn('[useWebsocketTelemetry] mqtt error', err && err.message);
-        });
-
-        // do not set wsConnected false on 'reconnect' events; let message/stale logic govern online state
-      } catch (e) {
-        console.error('[useWebsocketTelemetry] mqtt connect exception', e);
-        // fallback to backend after small delay
-        if (mqttRetryTimerRef.current) clearTimeout(mqttRetryTimerRef.current);
-        mqttRetryTimerRef.current = setTimeout(() => {
-          mqttRetryTimerRef.current = null;
-          if (active) connectBackendWs();
-        }, MQTT_RETRY_MS);
-      }
+        const res = await fetch(HTTP_POLL_URL, { cache: 'no-cache' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.telemetry) {
+            onPacketReceived(json.telemetry, 'HTTP Rest Polling');
+          }
+        }
+      } catch (e) {}
     }
 
-    // Start preferred path (mqtt-ws), fallback will be triggered automatically by handlers
-    connectMqttWs();
+    // Start all candidate connections
+    connectMqttOverWs();
+    connectRawExternalWs();
+    connectBackendWs();
+    pollTelemetryHttp();
 
-    // Cleanup on unmount
+    // Poll every 2 seconds to guarantee continuous live updates
+    pollIntervalRef.current = setInterval(pollTelemetryHttp, 2000);
+
+    // Watchdog check for stale state
+    const staleInterval = setInterval(() => {
+      const now = Date.now();
+      if (lastMsgTsRef.current && (now - lastMsgTsRef.current > 15_000)) {
+        setWsConnected(false);
+      }
+    }, 4000);
+
     return () => {
       active = false;
-      clearAllTimers();
-      try {
-        if (mqttClientRef.current) {
-          try { mqttClientRef.current.end(true); } catch (e) {}
-          mqttClientRef.current = null;
-        }
-      } catch (e) {}
-      try {
-        if (backendWsRef.current) {
-          try {
-            backendWsRef.current.onopen = backendWsRef.current.onmessage = backendWsRef.current.onclose = backendWsRef.current.onerror = null;
-            backendWsRef.current.close();
-          } catch (e) {}
-          backendWsRef.current = null;
-        }
-      } catch (e) {}
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      clearInterval(staleInterval);
+      try { if (mqttClientRef.current) mqttClientRef.current.end(true); } catch (e) {}
+      try { if (externalWsRef.current) externalWsRef.current.close(); } catch (e) {}
+      try { if (backendWsRef.current) backendWsRef.current.close(); } catch (e) {}
     };
-  }, []); // run once
+  }, [onPacketReceived]);
 
   return { telemetry, wsConnected, lastMsgTs, source };
 }

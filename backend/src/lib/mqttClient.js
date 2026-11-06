@@ -7,21 +7,32 @@
 //  - on(event, cb)
 //  - connect() -> returns a Promise that resolves when connected
 //  - end(force)
+//
+// NOTE: env vars are read LAZILY inside connect() so dotenv.config() can be called first in index.js
 
 const mqtt = require('mqtt');
 
-const MQTT_URL = process.env.MQTT_URL || 'mqtt://127.0.0.1:1883';
-const MQTT_USER = process.env.MQTT_USER || null;
-const MQTT_PASS = process.env.MQTT_PASS || null;
-const MQTT_CLIENT_ID = process.env.MQTT_CLIENT_ID || `agv360_${Math.random().toString(16).slice(2, 8)}`;
-
 let client = null;
 let readyPromise = null;
+let hasLoggedError = false;
+
+function getMqttUrl() {
+  return process.env.MQTT_URL || 'mqtt://127.0.0.1:1883';
+}
 
 function connect() {
   if (client && client.connected) return Promise.resolve(client);
 
   if (readyPromise) return readyPromise;
+
+  // Read env vars lazily at call time (after dotenv.config() has run in index.js)
+  const MQTT_URL = getMqttUrl();
+  const MQTT_USER = process.env.MQTT_USER || null;
+  const MQTT_PASS = process.env.MQTT_PASS || null;
+  const MQTT_CLIENT_ID = process.env.MQTT_CLIENT_ID || `agv360_${Math.random().toString(16).slice(2, 8)}`;
+
+  console.log('[lib/mqttClient] connecting to', MQTT_URL);
+
   readyPromise = new Promise((resolve, reject) => {
     const opts = { clientId: MQTT_CLIENT_ID, reconnectPeriod: 5000 };
     if (MQTT_USER) opts.username = MQTT_USER;
@@ -30,22 +41,25 @@ function connect() {
     client = mqtt.connect(MQTT_URL, opts);
 
     client.on('connect', () => {
+      hasLoggedError = false;
       console.log('[lib/mqttClient] connected to', MQTT_URL);
       resolve(client);
     });
 
     client.on('error', (err) => {
-      console.error('[lib/mqttClient] mqtt error', err && err.message);
-      // do not reject permanently — mqtt client will auto-retry; but reject first-time connect
-      // if still pending
-      if (readyPromise) {
-        // don't reject here; allow reconnect attempts
+      if (!hasLoggedError) {
+        console.error('[lib/mqttClient] mqtt error', err && err.message);
+        hasLoggedError = true;
       }
     });
 
-    // forward warnings
-    client.on('reconnect', () => console.log('[lib/mqttClient] reconnecting...'));
-    client.on('close', () => console.log('[lib/mqttClient] connection closed'));
+    client.on('reconnect', () => {
+      hasLoggedError = false;
+      console.log('[lib/mqttClient] reconnecting to', MQTT_URL);
+    });
+    client.on('close', () => {
+      if (!hasLoggedError) console.log('[lib/mqttClient] connection closed');
+    });
   });
 
   return readyPromise;
@@ -86,7 +100,6 @@ function subscribe(topic, opts = {}, handler = null) {
     client.subscribe(topic, opts, (err, granted) => {
       if (err) return reject(err);
       if (handler) {
-        // attach generic message handler that forwards only messages for this topic
         client.on('message', (t, msg) => {
           if (t === topic) {
             try {
@@ -104,7 +117,6 @@ function subscribe(topic, opts = {}, handler = null) {
 
 function on(event, cb) {
   if (!client) {
-    // ensure client is created and then attach
     connect().then(() => client.on(event, cb)).catch(err => {
       console.warn('[lib/mqttClient] error attaching event handler', err && err.message);
     });
@@ -131,7 +143,6 @@ function end(force = false) {
 }
 
 module.exports = {
-  client,
   connect,
   publish,
   subscribe,

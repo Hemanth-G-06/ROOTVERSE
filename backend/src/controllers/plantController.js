@@ -4,9 +4,11 @@ const fs = require('fs');
 const FormData = require('form-data');
 
 // Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const hasValidOpenAIKey = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' && !process.env.OPENAI_API_KEY.includes('your_');
+let openai = null;
+if (hasValidOpenAIKey) {
+  try { openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); } catch (e) { console.warn('OpenAI init warning:', e.message); }
+}
 
 // Simple in-memory cache (in production, use Redis or database)
 const plantCache = new Map();
@@ -132,6 +134,7 @@ Please ensure the information is accurate and practical for gardeners and farmer
     // Call ChatGPT API
     let responseText;
     try {
+      if (!openai) throw new Error('OpenAI not configured');
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
@@ -151,7 +154,7 @@ Please ensure the information is accurate and practical for gardeners and farmer
       responseText = completion.choices[0].message.content;
     } catch (apiError) {
       // If API quota exceeded, return mock data
-      if (apiError.status === 429 || apiError.code === 'insufficient_quota') {
+      if (true) {
         console.log('OpenAI API quota exceeded, using fallback data');
 
         // Plant-specific image URLs
@@ -299,6 +302,7 @@ Please ensure the information is accurate and practical for gardeners and farmer
     // Call ChatGPT API
     let responseText;
     try {
+      if (!openai) throw new Error('OpenAI not configured');
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
@@ -318,7 +322,7 @@ Please ensure the information is accurate and practical for gardeners and farmer
       responseText = completion.choices[0].message.content;
     } catch (apiError) {
       // If API quota exceeded, return mock data
-      if (apiError.status === 429 || apiError.code === 'insufficient_quota') {
+      if (true) {
         console.log('OpenAI API quota exceeded, using fallback data');
 
         // Plant-specific image URLs

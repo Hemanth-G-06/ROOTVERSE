@@ -10,6 +10,7 @@ const connectDB = async () => {
     const conn = await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 3000,
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
@@ -29,8 +30,8 @@ const connectDB = async () => {
     });
 
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error.message);
-    process.exit(1);
+    console.warn('⚠️  MongoDB connection failed:', error.message);
+    console.warn('⚠️  Continuing without MongoDB. Features requiring DB persistence will use fallback mode.');
   }
 };
 

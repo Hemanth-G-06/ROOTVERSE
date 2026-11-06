@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+// ── Original ag360 pages (preserved) ──────────────────────────────────────
 import Home from './pages/Home';
 import IrrigationControl from './pages/IrrigationControl';
 import LiveSensorData from './pages/LiveSensorData';
@@ -9,29 +11,55 @@ import MyFarm from './pages/MyFarm';
 import VoiceAssistant from './pages/VoiceAssistant';
 import Settings from './pages/Settings';
 import About from './pages/About';
-import Navbar from './components/Navbar';
+
+// ── RootPulse 3D pages ─────────────────────────────────────────────────────
+import RootPulseDashboard from './pages/RootPulseDashboard';
+import DigitalTwinPage from './pages/DigitalTwinPage';
+import RootVisionPage from './pages/RootVisionPage';
+import SoilIntelligencePage from './pages/SoilIntelligencePage';
+import AquaRootPage from './pages/AquaRootPage';
+import RootNetZonesPage from './pages/RootNetZonesPage';
+import SoilGuardAnalyticsPage from './pages/SoilGuardAnalyticsPage';
+import AIAssistantPage from './pages/AIAssistantPage';
+
+// ── RootPulse context & navbar ─────────────────────────────────────────────
+import { RootPulseProvider } from './context/RootPulseContext';
+import RootPulseNavbar from './components/RootPulseNavbar';
+
 import './App.css';
 
 function App() {
   return (
-    <Router>
-      <div className="App">
-        <Navbar />
-        <main className="container mx-auto p-4">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/irrigation" element={<IrrigationControl />} />
-            <Route path="/sensors" element={<LiveSensorData />} />
-            <Route path="/disease" element={<DiseaseDetection />} />
-            <Route path="/plant" element={<PlantInfo />} />
-            <Route path="/farm" element={<MyFarm />} />
-            <Route path="/voice" element={<VoiceAssistant />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/about" element={<About />} />
-          </Routes>
-        </main>
-      </div>
+    <RootPulseProvider>
+      <Router>
+        <div className="App" style={{ minHeight: '100vh', backgroundColor: '#0a0f1e', color: '#e2e8f0' }}>
+          <RootPulseNavbar />
+          <main style={{ paddingTop: '70px' }}>
+            <Routes>
+              {/* ── RootPulse 3D (primary routes) ── */}
+              <Route path="/" element={<RootPulseDashboard />} />
+              <Route path="/digital-twin" element={<DigitalTwinPage />} />
+              <Route path="/rootvision" element={<RootVisionPage />} />
+              <Route path="/intelligence" element={<SoilIntelligencePage />} />
+              <Route path="/irrigation" element={<AquaRootPage />} />
+              <Route path="/zones" element={<RootNetZonesPage />} />
+              <Route path="/analytics" element={<SoilGuardAnalyticsPage />} />
+              <Route path="/assistant" element={<AIAssistantPage />} />
+
+              {/* ── Original ag360 routes (preserved) ── */}
+              <Route path="/home-legacy" element={<Home />} />
+              <Route path="/sensors" element={<LiveSensorData />} />
+              <Route path="/disease" element={<DiseaseDetection />} />
+              <Route path="/plant" element={<PlantInfo />} />
+              <Route path="/farm" element={<MyFarm />} />
+              <Route path="/voice" element={<VoiceAssistant />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/about" element={<About />} />
+            </Routes>
+          </main>
+        </div>
       </Router>
+    </RootPulseProvider>
   );
 }
 
