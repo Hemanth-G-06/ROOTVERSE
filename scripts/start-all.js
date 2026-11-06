@@ -5,9 +5,9 @@ const rootDir = path.resolve(__dirname, '..');
 const backendDir = path.join(rootDir, 'backend');
 const frontendDir = path.join(rootDir, 'frontend');
 
-console.log('🌱 =======================================');
-console.log('🌱 Starting Agriverse360 All Services...');
-console.log('🌱 =======================================');
+console.log('🌱 ============================================================');
+console.log('🌱 Starting BERUDRISHTI (ಬೇರುದೃಷ್ಟಿ) Underground Intelligence...');
+console.log('🌱 ============================================================');
 console.log('');
 
 const isWindows = process.platform === 'win32';

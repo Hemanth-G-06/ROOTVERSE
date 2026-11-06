@@ -277,6 +277,9 @@ try {
   const rootpulseRoutes = require('./routes/rootpulse');
   app.use('/api', rootpulseRoutes);
   console.log('✅ RootPulse 3D Intelligence routes mounted successfully');
+  const berudrishtiRoutes = require('./routes/berudrishti');
+  app.use('/api', berudrishtiRoutes);
+  console.log('✅ BERUDRISHTI Core Engine routes mounted successfully');
   const telemetryRoutes = require('./routes/telemetry');
   app.use('/api/telemetry', telemetryRoutes);
   console.log('✅ Live Telemetry routes mounted successfully');

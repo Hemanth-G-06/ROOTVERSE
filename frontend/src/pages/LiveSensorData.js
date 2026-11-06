@@ -1,4 +1,5 @@
 // frontend/src/pages/LiveSensorData.js
+// Visual Identity: HAXLR8 3.0 Clean Agricultural Design System
 // Real-time ESP32 IoT Sensor Dashboard with Live Charts, Depth Stratum, Relay Control & MongoDB History
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -7,7 +8,7 @@ import {
 import useWebsocketTelemetry from '../hooks/useWebsocketTelemetry';
 import {
   Droplets, Thermometer, Sun, Wind, Activity, Zap, CheckCircle2,
-  AlertCircle, RefreshCw, Power, Radio, Database
+  AlertCircle, RefreshCw, Power, Radio, Database, ShieldCheck, Info
 } from 'lucide-react';
 
 const API_BASE = process.env.REACT_APP_API_HOST || 'http://localhost:5001';
@@ -51,10 +52,10 @@ export default function LiveSensorData() {
           const t = json.telemetry;
           setLiveData({
             deviceId: t.deviceId || 'esp32-01',
-            temperature: typeof t.temperature === 'number' ? t.temperature : 24.5,
-            humidity: typeof t.humidity === 'number' ? t.humidity : 60,
-            soilPct: typeof t.soilPct === 'number' ? t.soilPct : 45,
-            ldrPct: typeof t.ldrPct === 'number' ? t.ldrPct : 50,
+            temperature: typeof t.temperature === 'number' ? t.temperature : 27.3,
+            humidity: typeof t.humidity === 'number' ? t.humidity : 64.6,
+            soilPct: typeof t.soilPct === 'number' ? t.soilPct : 40,
+            ldrPct: typeof t.ldrPct === 'number' ? t.ldrPct : 14,
             relay1: t.relay1 ? 1 : 0,
             relay2: t.relay2 ? 1 : 0,
             timestamp: new Date(t.timestamp || Date.now()).toLocaleTimeString()
@@ -105,7 +106,6 @@ export default function LiveSensorData() {
     const t = typeof telemetry.temperature === 'number' ? +(telemetry.temperature.toFixed(1)) : liveData.temperature;
     const h = typeof telemetry.humidity === 'number' ? +(telemetry.humidity.toFixed(1)) : liveData.humidity;
 
-    // Robust live extraction of soil moisture (supports soilPct, soil, moisture, raw ADC > 100)
     const rawSoil = telemetry.soilPct ?? telemetry.soil ?? telemetry.soilMoisture ?? telemetry.moisture;
     let soil = liveData.soilPct;
     if (rawSoil !== undefined && rawSoil !== null) {
@@ -192,480 +192,341 @@ export default function LiveSensorData() {
     }
   };
 
-  // Status checks
   const isOptimalSoil = liveData.soilPct >= 35 && liveData.soilPct <= 60;
   const isDrySoil = liveData.soilPct < 30;
-  const isWetSoil = liveData.soilPct > 70;
 
   const nowMs = Date.now();
   const recent = lastMsgTs && (nowMs - lastMsgTs <= 15_000);
   const isOnline = wsConnected || recent;
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 20px', color: '#e2e8f0' }}>
-      {/* ── Top Header Strip ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 16 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#10b981', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Activity className="w-8 h-8 text-emerald-400" />
-              Live Hardware Sensor Stream
+    <div className="min-h-screen bg-[#FFF9F1] py-6 px-4 sm:px-6 lg:px-8 pb-20 text-[#172033]">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* ── Top Header Strip ──────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-[#F5D8B4] p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                isOnline ? 'bg-[#E8F7ED] text-[#126B3B] border-[#159F57]/40' : 'bg-[#FFF0DB] text-[#DC4545] border-[#F5D8B4]'
+              }`}>
+                {isOnline ? `● LIVE HARDWARE STREAM (${source || 'MQTT / WS'})` : 'OFFLINE (RECONNECTING)'}
+              </span>
+              <span className="text-xs text-[#667085] font-semibold">
+                Device: {liveData.deviceId}
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight flex items-center gap-2">
+              <Activity className="w-7 h-7 text-[#159F57]" />
+              Live Hardware Sensor Stream & Ingestion
             </h1>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '4px 12px',
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 700,
-                background: isOnline ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                color: isOnline ? '#34d399' : '#f87171',
-                border: `1px solid ${isOnline ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}`
-              }}
+            <p className="text-xs text-[#667085] mt-1">
+              Active telemetry parsed from ESP32 node via broker <code className="text-[#078DC1] font-semibold">10.82.161.183:1883</code> & WebSocket <code className="text-[#078DC1] font-semibold">10.76.50.208:8080</code> on topic <code className="text-[#126B3B] font-semibold">esp32/telemetry</code>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchInitialData}
+              disabled={refreshing}
+              className="bg-[#E8F7ED] hover:bg-[#159F57] text-[#126B3B] hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors border border-[#159F57]/30 flex items-center gap-1.5 shadow-sm"
             >
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: isOnline ? '#10b981' : '#ef4444', display: 'inline-block' }} />
-              {isOnline ? `LIVE STREAM (${source || 'MQTT / WS'})` : 'OFFLINE (RETRYING)'}
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <div className="text-xs text-[#667085] text-right">
+              <div>Last sync: <strong className="text-[#172033]">{lastSync}</strong></div>
+              <div>MongoDB Sync: <span className="text-[#159F57] font-semibold">Active</span></div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 4 Main Live Sensor Metric Cards ─────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Soil Moisture */}
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-5 shadow-sm space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-xs font-bold text-[#667085] flex items-center gap-1">
+                  <Droplets className="w-4 h-4 text-[#159F57]" /> Capacitive Soil Moisture
+                </span>
+                <div className="text-3xl font-black text-[#126B3B] font-mono mt-2">
+                  {Math.max(0, Math.min(100, liveData.soilPct + soilOffset))}%
+                </div>
+                <div className="text-[11px] text-[#667085] mt-0.5">
+                  Raw ESP32: <strong className="text-[#078DC1]">{liveData.soilPct}%</strong>
+                  {soilOffset !== 0 && <span className="text-[#E9A23B] ml-1">({soilOffset > 0 ? `+${soilOffset}` : soilOffset}%)</span>}
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-[#E8F7ED] flex items-center justify-center text-[#159F57]">
+                <Droplets className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-[#FFF0DB] h-2 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#159F57] transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, liveData.soilPct + soilOffset))}%` }}
+              />
+            </div>
+
+            <div className="pt-2 border-t border-[#F5D8B4]/40 flex gap-1 flex-wrap text-[10px]">
+              <span className="text-[#667085] mr-1 self-center">Calib:</span>
+              <button onClick={() => setSoilOffset(prev => prev - 5)} className="px-2 py-0.5 rounded bg-[#FFF9F1] border border-[#F5D8B4] hover:bg-[#E8F7ED]">-5%</button>
+              <button onClick={() => setSoilOffset(0)} className="px-2 py-0.5 rounded bg-[#FFF9F1] border border-[#F5D8B4] hover:bg-[#E8F7ED]">Raw</button>
+              <button onClick={() => setSoilOffset(prev => prev + 5)} className="px-2 py-0.5 rounded bg-[#FFF9F1] border border-[#F5D8B4] hover:bg-[#E8F7ED]">+5%</button>
+              <button onClick={() => setSoilOffset(prev => prev + 10)} className="px-2 py-0.5 rounded bg-[#FFF9F1] border border-[#F5D8B4] hover:bg-[#E8F7ED]">+10%</button>
+            </div>
+          </div>
+
+          {/* Temperature */}
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-5 shadow-sm space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-xs font-bold text-[#667085] flex items-center gap-1">
+                  <Thermometer className="w-4 h-4 text-[#DC4545]" /> DHT22 Temperature
+                </span>
+                <div className="text-3xl font-black text-[#DC4545] font-mono mt-2">
+                  {liveData.temperature} <span className="text-lg">°C</span>
+                </div>
+                <div className="text-[11px] text-[#667085] mt-0.5">
+                  Optimal metabolic: 18–26°C
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-[#FFF0DB] flex items-center justify-center text-[#DC4545]">
+                <Thermometer className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-[#FFF0DB] h-2 rounded-full overflow-hidden">
+              <div className="h-full bg-[#DC4545] transition-all" style={{ width: `${Math.min(100, (liveData.temperature / 45) * 100)}%` }} />
+            </div>
+
+            <div className="text-[11px] text-[#667085] pt-2 border-t border-[#F5D8B4]/40">
+              Thermal comfort: Normal subterranean condition
+            </div>
+          </div>
+
+          {/* Humidity */}
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-5 shadow-sm space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-xs font-bold text-[#667085] flex items-center gap-1">
+                  <Wind className="w-4 h-4 text-[#078DC1]" /> Air Humidity
+                </span>
+                <div className="text-3xl font-black text-[#078DC1] font-mono mt-2">
+                  {liveData.humidity}%
+                </div>
+                <div className="text-[11px] text-[#667085] mt-0.5">
+                  Balanced vapor pressure deficit
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-[#DDF3FA] flex items-center justify-center text-[#078DC1]">
+                <Wind className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-[#DDF3FA] h-2 rounded-full overflow-hidden">
+              <div className="h-full bg-[#078DC1] transition-all" style={{ width: `${Math.min(100, liveData.humidity)}%` }} />
+            </div>
+
+            <div className="text-[11px] text-[#667085] pt-2 border-t border-[#F5D8B4]/40">
+              Apical transpiration rate: Steady
+            </div>
+          </div>
+
+          {/* Light (LDR) */}
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-5 shadow-sm space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-xs font-bold text-[#667085] flex items-center gap-1">
+                  <Sun className="w-4 h-4 text-[#E9A23B]" /> Light Intensity (LDR)
+                </span>
+                <div className="text-3xl font-black text-[#E9A23B] font-mono mt-2">
+                  {liveData.ldrPct}%
+                </div>
+                <div className="text-[11px] text-[#667085] mt-0.5">
+                  Solar radiation index
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-[#FFF0DB] flex items-center justify-center text-[#E9A23B]">
+                <Sun className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-[#FFF0DB] h-2 rounded-full overflow-hidden">
+              <div className="h-full bg-[#E9A23B] transition-all" style={{ width: `${Math.min(100, liveData.ldrPct)}%` }} />
+            </div>
+
+            <div className="text-[11px] text-[#667085] pt-2 border-t border-[#F5D8B4]/40">
+              Photosynthesis: {liveData.ldrPct > 50 ? 'Active Daylight' : 'Low / Shadowed'}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Subterranean Soil Depth Stratum & Actuator Relays ─────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Stratum Inferred Breakdown */}
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-5 shadow-sm space-y-3">
+            <h3 className="text-sm font-bold text-[#172033] flex items-center gap-2">
+              <Zap className="w-4 h-4 text-[#159F57]" />
+              Depth-Wise Underground Moisture Horizon
+            </h3>
+            <div className="space-y-2">
+              <div className="p-3 rounded-xl bg-[#FFF9F1] border border-[#F5D8B4] flex justify-between items-center text-xs">
+                <div>
+                  <div className="font-bold text-[#172033]">10 cm Surface Layer (Topsoil)</div>
+                  <div className="text-[#667085]">Measured by Capacitive Pin 34 AO</div>
+                </div>
+                <div className="text-base font-extrabold text-[#126B3B]">{liveData.soilPct}%</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FFF9F1] border border-[#F5D8B4] flex justify-between items-center text-xs">
+                <div>
+                  <div className="font-bold text-[#172033]">20 cm Mid-Root Horizon</div>
+                  <div className="text-[#667085]">Subsurface percolation zone | Compaction: 960 kPa</div>
+                </div>
+                <div className="text-base font-extrabold text-[#078DC1]">{Math.max(5, Math.round(liveData.soilPct * 0.94))}%</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FFF9F1] border border-[#F5D8B4] flex justify-between items-center text-xs">
+                <div>
+                  <div className="font-bold text-[#172033]">30 cm Deep Subsoil Anchor</div>
+                  <div className="text-[#667085]">Taproot water reservoir | Compaction: 1090 kPa</div>
+                </div>
+                <div className="text-base font-extrabold text-[#E9A23B]">{Math.max(5, Math.round(liveData.soilPct * 0.88))}%</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actuator Relays */}
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-5 shadow-sm space-y-3">
+            <h3 className="text-sm font-bold text-[#172033] flex items-center gap-2">
+              <Power className="w-4 h-4 text-[#078DC1]" />
+              ESP32 Physical Actuator Relays (MQTT Remote Command)
+            </h3>
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-[#FFF9F1] border border-[#F5D8B4] flex justify-between items-center text-xs">
+                <div>
+                  <div className="font-bold text-[#172033]">Relay 1: Irrigation Solenoid Valve (GPIO 18)</div>
+                  <div className="text-[#667085]">Topic: <code>esp32/relay1</code> | Status: <strong className={liveData.relay1 ? 'text-[#159F57]' : 'text-[#DC4545]'}>{liveData.relay1 ? 'ON (ACTIVE)' : 'OFF (IDLE)'}</strong></div>
+                </div>
+                <button
+                  onClick={() => toggleRelay(1)}
+                  disabled={relayLoading[1]}
+                  className={`px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm ${
+                    liveData.relay1 ? 'bg-[#DC4545] text-white' : 'bg-[#159F57] text-white'
+                  }`}
+                >
+                  {relayLoading[1] ? 'Sending...' : liveData.relay1 ? 'TURN OFF' : 'TURN ON'}
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FFF9F1] border border-[#F5D8B4] flex justify-between items-center text-xs">
+                <div>
+                  <div className="font-bold text-[#172033]">Relay 2: Auxiliary / Doser (GPIO 5)</div>
+                  <div className="text-[#667085]">Topic: <code>esp32/relay2</code> | Status: <strong className={liveData.relay2 ? 'text-[#159F57]' : 'text-[#DC4545]'}>{liveData.relay2 ? 'ON (ACTIVE)' : 'OFF (IDLE)'}</strong></div>
+                </div>
+                <button
+                  onClick={() => toggleRelay(2)}
+                  disabled={relayLoading[2]}
+                  className={`px-4 py-1.5 rounded-xl font-bold text-xs transition-colors shadow-sm ${
+                    liveData.relay2 ? 'bg-[#DC4545] text-white' : 'bg-[#159F57] text-white'
+                  }`}
+                >
+                  {relayLoading[2] ? 'Sending...' : liveData.relay2 ? 'TURN OFF' : 'TURN ON'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Live Charts ────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-[#172033] mb-4 flex items-center gap-2">
+              <Droplets className="w-4 h-4 text-[#159F57]" /> Live Soil Moisture & Light Radiation
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={sensorData.length > 0 ? sensorData : [{ time: 'Now', soilMoisture: liveData.soilPct, ldr: liveData.ldrPct }]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F5D8B4" opacity={0.5} />
+                  <XAxis dataKey="time" stroke="#667085" fontSize={10} />
+                  <YAxis domain={[0, 100]} stroke="#667085" fontSize={10} unit="%" />
+                  <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #F5D8B4', borderRadius: 8, fontSize: 11 }} />
+                  <Legend />
+                  <Area type="monotone" name="Soil Moisture (%)" dataKey="soilMoisture" stroke="#159F57" fill="#E8F7ED" />
+                  <Area type="monotone" name="LDR Light (%)" dataKey="ldr" stroke="#E9A23B" fill="#FFF0DB" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-[#F5D8B4] p-6 shadow-sm">
+            <h3 className="text-sm font-bold text-[#172033] mb-4 flex items-center gap-2">
+              <Thermometer className="w-4 h-4 text-[#DC4545]" /> DHT22 Temperature & Humidity Dynamic
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={sensorData.length > 0 ? sensorData : [{ time: 'Now', temperature: liveData.temperature, humidity: liveData.humidity }]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F5D8B4" opacity={0.5} />
+                  <XAxis dataKey="time" stroke="#667085" fontSize={10} />
+                  <YAxis yAxisId="t" domain={[10, 45]} stroke="#DC4545" fontSize={10} unit="°C" />
+                  <YAxis yAxisId="h" orientation="right" domain={[20, 100]} stroke="#078DC1" fontSize={10} unit="%" />
+                  <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid #F5D8B4', borderRadius: 8, fontSize: 11 }} />
+                  <Legend />
+                  <Line yAxisId="t" type="monotone" name="Temp (°C)" dataKey="temperature" stroke="#DC4545" strokeWidth={2} dot={false} />
+                  <Line yAxisId="h" type="monotone" name="Humidity (%)" dataKey="humidity" stroke="#078DC1" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Live Log Stream Table ──────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-[#F5D8B4] p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#172033] flex items-center gap-2">
+                <Database className="w-4 h-4 text-[#078DC1]" />
+                Recent Sensor Telemetry Log Stream
+              </h3>
+              <p className="text-xs text-[#667085]">Packets received over active transport and verified in memory</p>
+            </div>
+            <span className="text-xs bg-[#E8F7ED] text-[#126B3B] px-2.5 py-0.5 rounded-full font-bold border border-[#159F57]/30">
+              {tableRows.length} Packets
             </span>
           </div>
-          <p style={{ margin: '6px 0 0', fontSize: 13, color: '#94a3b8' }}>
-            Real-time telemetry parsed from ESP32 node (<code style={{ color: '#38bdf8' }}>{liveData.deviceId}</code>) via broker <code style={{ color: '#fbbf24' }}>10.82.161.183:1883</code> topic <code style={{ color: '#a78bfa' }}>esp32/telemetry</code>
-          </p>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={fetchInitialData}
-            disabled={refreshing}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: '#e2e8f0',
-              padding: '8px 14px',
-              borderRadius: 8,
-              fontSize: 13,
-              cursor: refreshing ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-emerald-400' : ''}`} />
-            Refresh
-          </button>
-          <div style={{ fontSize: 12, color: '#64748b', textAlign: 'right' }}>
-            <div>Last sync: <strong style={{ color: '#cbd5e1' }}>{lastSync}</strong></div>
-            <div>Database: <span style={{ color: '#10b981' }}>MongoDB Change Sync Active</span></div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 4 Main Live Sensor Metric Cards ─────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18, marginBottom: 24 }}>
-        {/* Soil Moisture */}
-        <div style={{ background: 'rgba(15,23,42,0.8)', border: `1px solid ${lastPacketFlash ? '#10b981' : 'rgba(16,185,129,0.3)'}`, borderRadius: 14, padding: 20, transition: 'border-color 0.3s ease' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Droplets className="w-4 h-4 text-emerald-400" />
-                Soil Moisture (Live Capacitive)
-                {lastPacketFlash && (
-                  <span style={{ fontSize: 10, background: '#10b981', color: '#000', padding: '1px 6px', borderRadius: 10, fontWeight: 800 }}>
-                    LIVE INGEST
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 38, fontWeight: 800, color: '#10b981', marginTop: 8 }}>
-                {Math.max(0, Math.min(100, liveData.soilPct + soilOffset))}%
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                Raw Hardware Reading: <strong style={{ color: '#38bdf8' }}>{liveData.soilPct}%</strong>
-                {soilOffset !== 0 && (
-                  <span style={{ color: '#fbbf24', marginLeft: 6 }}>
-                    ({soilOffset > 0 ? `+${soilOffset}` : soilOffset}% calibration offset)
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: isOptimalSoil ? '#34d399' : isDrySoil ? '#f87171' : '#38bdf8', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                {isOptimalSoil ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                {isOptimalSoil ? 'Optimal Root Hydration' : isDrySoil ? 'Root Moisture Deficiency' : 'High Saturation'}
-              </div>
-            </div>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Droplets className="w-6 h-6 text-emerald-400" />
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ marginTop: 14, background: 'rgba(255,255,255,0.08)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-            <div style={{ width: `${Math.min(100, Math.max(0, liveData.soilPct + soilOffset))}%`, height: '100%', background: isDrySoil ? '#ef4444' : isOptimalSoil ? '#10b981' : '#0284c7', transition: 'width 0.4s ease' }} />
-          </div>
-
-          {/* Soil Calibration Fine-Tuning Pill Controls */}
-          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
-              <span>Field Calibration:</span>
-              <span style={{ color: '#64748b' }}>Packets: {packetCount}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setSoilOffset(prev => prev - 5)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
-              >
-                -5%
-              </button>
-              <button
-                onClick={() => setSoilOffset(0)}
-                style={{ background: soilOffset === 0 ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: soilOffset === 0 ? '#34d399' : '#cbd5e1', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
-              >
-                Raw Pass
-              </button>
-              <button
-                onClick={() => setSoilOffset(prev => prev + 5)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
-              >
-                +5%
-              </button>
-              <button
-                onClick={() => setSoilOffset(prev => prev + 10)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
-              >
-                +10%
-              </button>
-              <button
-                onClick={() => setSoilOffset(prev => prev + 20)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', padding: '3px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
-              >
-                +20%
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Temperature */}
-        <div style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 14, padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Thermometer className="w-4 h-4 text-rose-400" />
-                Temperature (DHT22)
-              </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: '#f43f5e', marginTop: 8 }}>
-                {liveData.temperature} <span style={{ fontSize: 22, fontWeight: 600 }}>°C</span>
-              </div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-                Thermal Status: {liveData.temperature > 32 ? 'High Thermal Stress' : liveData.temperature < 15 ? 'Cold Infiltration' : 'Normal Biological Growth'}
-              </div>
-            </div>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(244,63,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Thermometer className="w-6 h-6 text-rose-400" />
-            </div>
-          </div>
-          <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.08)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-            <div style={{ width: `${Math.min(100, (liveData.temperature / 50) * 100)}%`, height: '100%', background: liveData.temperature > 32 ? '#f43f5e' : '#fbbf24', transition: 'width 0.5s ease' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginTop: 6 }}>
-            <span>0°C</span>
-            <span>Safe Range: 18-28°C</span>
-            <span>50°C</span>
-          </div>
-        </div>
-
-        {/* Humidity */}
-        <div style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 14, padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Wind className="w-4 h-4 text-blue-400" />
-                Air Humidity (DHT22)
-              </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: '#38bdf8', marginTop: 8 }}>
-                {liveData.humidity}%
-              </div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-                Vapor Deficit: {liveData.humidity > 80 ? 'High Humidity' : liveData.humidity < 40 ? 'Dry Air Evaporation' : 'Balanced Transpiration'}
-              </div>
-            </div>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(56,189,248,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Wind className="w-6 h-6 text-blue-400" />
-            </div>
-          </div>
-          <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.08)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-            <div style={{ width: `${Math.min(100, liveData.humidity)}%`, height: '100%', background: '#38bdf8', transition: 'width 0.5s ease' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginTop: 6 }}>
-            <span>0%</span>
-            <span>Optimal: 50-70%</span>
-            <span>100%</span>
-          </div>
-        </div>
-
-        {/* Light (LDR) */}
-        <div style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 14, padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Sun className="w-4 h-4 text-amber-400" />
-                Light Intensity (LDR)
-              </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: '#fbbf24', marginTop: 8 }}>
-                {liveData.ldrPct}%
-              </div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
-                Solar Radiation: {liveData.ldrPct > 70 ? 'Full Daylight' : liveData.ldrPct > 30 ? 'Overcast / Filtered' : 'Dark / Night'}
-              </div>
-            </div>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(251,191,36,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Sun className="w-6 h-6 text-amber-400" />
-            </div>
-          </div>
-          <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.08)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-            <div style={{ width: `${Math.min(100, liveData.ldrPct)}%`, height: '100%', background: '#fbbf24', transition: 'width 0.5s ease' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginTop: 6 }}>
-            <span>Dark (0%)</span>
-            <span>Photosynthesis Active</span>
-            <span>Bright (100%)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Subterranean 3-Depth Inferred Stratum & Physical Relay Controls ──── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 18, marginBottom: 24 }}>
-        {/* Depth Stratum Breakdown */}
-        <div style={{ background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 14px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Zap className="w-5 h-5 text-sky-400" />
-            Underground Soil Moisture Profile (Live Multi-Depth Stratum)
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Layer 1: 10cm */}
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10, padding: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>Layer 1: 10 cm (Topsoil Surface)</span>
-                <strong style={{ color: '#10b981' }}>{liveData.soilPct}% Moisture</strong>
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                Directly measured by Pin 34 AO. Temperature: {liveData.temperature}°C | EC: 1.25 mS/cm
-              </div>
-            </div>
-
-            {/* Layer 2: 20cm */}
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 10, padding: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>Layer 2: 20 cm (Mid-Root Horizon)</span>
-                <strong style={{ color: '#38bdf8' }}>{Math.max(5, Math.round(liveData.soilPct * 0.94))}% Moisture</strong>
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                Subsurface percolation horizon. Temperature: {+(liveData.temperature - 0.4).toFixed(1)}°C | Compaction: 950 kPa
-              </div>
-            </div>
-
-            {/* Layer 3: 30cm */}
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 10, padding: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>Layer 3: 30 cm (Deep Subsoil Anchor)</span>
-                <strong style={{ color: '#c084fc' }}>{Math.max(5, Math.round(liveData.soilPct * 0.88))}% Moisture</strong>
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                Deep taproot water reserve. Temperature: {+(liveData.temperature - 0.8).toFixed(1)}°C | Compaction: 1080 kPa
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Physical ESP32 Relay Switches */}
-        <div style={{ background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 14px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Power className="w-5 h-5 text-amber-400" />
-            ESP32 Actuator Relays (MQTT Remote Control)
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Relay 1 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 14 }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Relay 1: Irrigation Valve / Pump</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                  Topic: <code style={{ color: '#38bdf8' }}>esp32/relay1</code> (GPIO 18) | State: <strong style={{ color: liveData.relay1 ? '#10b981' : '#f43f5e' }}>{liveData.relay1 ? 'ACTIVE (ON)' : 'IDLE (OFF)'}</strong>
-                </div>
-              </div>
-              <button
-                onClick={() => toggleRelay(1)}
-                disabled={relayLoading[1]}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: 8,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: relayLoading[1] ? 'not-allowed' : 'pointer',
-                  border: 'none',
-                  background: liveData.relay1 ? '#10b981' : 'rgba(255,255,255,0.1)',
-                  color: liveData.relay1 ? '#000' : '#e2e8f0',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {relayLoading[1] ? 'Sending...' : liveData.relay1 ? 'TURN OFF' : 'TURN ON'}
-              </button>
-            </div>
-
-            {/* Relay 2 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 14 }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Relay 2: Auxiliary / Doser</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                  Topic: <code style={{ color: '#38bdf8' }}>esp32/relay2</code> (GPIO 5) | State: <strong style={{ color: liveData.relay2 ? '#10b981' : '#f43f5e' }}>{liveData.relay2 ? 'ACTIVE (ON)' : 'IDLE (OFF)'}</strong>
-                </div>
-              </div>
-              <button
-                onClick={() => toggleRelay(2)}
-                disabled={relayLoading[2]}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: 8,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: relayLoading[2] ? 'not-allowed' : 'pointer',
-                  border: 'none',
-                  background: liveData.relay2 ? '#10b981' : 'rgba(255,255,255,0.1)',
-                  color: liveData.relay2 ? '#000' : '#e2e8f0',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {relayLoading[2] ? 'Sending...' : liveData.relay2 ? 'TURN OFF' : 'TURN ON'}
-              </button>
-            </div>
-
-            <div style={{ fontSize: 11, color: '#94a3b8', background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8 }}>
-              💡 Commands are published directly to Mosquitto broker <code style={{ color: '#fbbf24' }}>10.82.161.183</code> and executed by your ESP32 in under 50ms.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Live Charts ────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: 18, marginBottom: 24 }}>
-        {/* Soil Moisture & Light Chart */}
-        <div style={{ background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Droplets className="w-5 h-5 text-emerald-400" />
-            Live Soil Moisture & Light Radiation Trend
-          </h2>
-          <div style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sensorData.length > 0 ? sensorData : [{ time: 'Now', soilMoisture: liveData.soilPct, ldr: liveData.ldrPct }]}>
-                <defs>
-                  <linearGradient id="colorSoil" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorLdr" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.6}/>
-                    <stop offset="95%" stopColor="#fbbf24" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} unit="%" />
-                <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8 }} />
-                <Legend />
-                <Area type="monotone" name="Soil Moisture (%)" dataKey="soilMoisture" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorSoil)" />
-                <Area type="monotone" name="LDR Light (%)" dataKey="ldr" stroke="#fbbf24" strokeWidth={2} fillOpacity={1} fill="url(#colorLdr)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Temperature & Humidity Dual-Axis Trend */}
-        <div style={{ background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Thermometer className="w-5 h-5 text-rose-400" />
-            DHT22 Temperature & Humidity Dynamics
-          </h2>
-          <div style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sensorData.length > 0 ? sensorData : [{ time: 'Now', temperature: liveData.temperature, humidity: liveData.humidity }]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={11} />
-                <YAxis yAxisId="temp" domain={[10, 45]} stroke="#f43f5e" fontSize={11} unit="°C" />
-                <YAxis yAxisId="hum" orientation="right" domain={[20, 100]} stroke="#38bdf8" fontSize={11} unit="%" />
-                <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8 }} />
-                <Legend />
-                <Line yAxisId="temp" type="monotone" name="Temp (°C)" dataKey="temperature" stroke="#f43f5e" strokeWidth={2} dot={false} />
-                <Line yAxisId="hum" type="monotone" name="Humidity (%)" dataKey="humidity" stroke="#38bdf8" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Live Ingest Log Stream Table ────────────────────────────────────── */}
-      <div style={{ background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Database className="w-5 h-5 text-indigo-400" />
-              Live Telemetry Packet Stream (MongoDB / In-Memory Feed)
-            </h2>
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-              Displaying the latest packets received and parsed from <code style={{ color: '#38bdf8' }}>esp32/telemetry</code>
-            </div>
-          </div>
-          <span style={{ fontSize: 12, color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: 6 }}>
-            {tableRows.length} recent packets
-          </span>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8' }}>
-                <th style={{ padding: '10px 12px' }}>Timestamp</th>
-                <th style={{ padding: '10px 12px' }}>Soil Moisture</th>
-                <th style={{ padding: '10px 12px' }}>Temperature</th>
-                <th style={{ padding: '10px 12px' }}>Humidity</th>
-                <th style={{ padding: '10px 12px' }}>LDR Light</th>
-                <th style={{ padding: '10px 12px' }}>Relay Status</th>
-                <th style={{ padding: '10px 12px' }}>Sync State</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableRows.length > 0 ? (
-                tableRows.map((row, idx) => (
-                  <tr
-                    key={idx}
-                    style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      background: idx === 0 ? 'rgba(16,185,129,0.05)' : 'transparent'
-                    }}
-                  >
-                    <td style={{ padding: '10px 12px', color: '#94a3b8', fontFamily: 'monospace' }}>{row.time}</td>
-                    <td style={{ padding: '10px 12px', fontWeight: 600, color: '#10b981' }}>{row.soilMoisture}</td>
-                    <td style={{ padding: '10px 12px', color: '#f43f5e' }}>{row.temperature}</td>
-                    <td style={{ padding: '10px 12px', color: '#38bdf8' }}>{row.humidity}</td>
-                    <td style={{ padding: '10px 12px', color: '#fbbf24' }}>{row.ldr}</td>
-                    <td style={{ padding: '10px 12px', fontSize: 12 }}>
-                      <span style={{ color: row.relay1 ? '#10b981' : '#64748b' }}>R1: {row.relay1 ? 'ON' : 'OFF'}</span> |{' '}
-                      <span style={{ color: row.relay2 ? '#10b981' : '#64748b' }}>R2: {row.relay2 ? 'ON' : 'OFF'}</span>
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: 11, background: 'rgba(16,185,129,0.15)', color: '#34d399', padding: '2px 8px', borderRadius: 4 }}>
-                        VERIFIED
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>
-                    Waiting for initial telemetry packet from ESP32...
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="border-b border-[#F5D8B4] text-[#667085]">
+                  <th className="py-2.5 px-3">Timestamp</th>
+                  <th className="py-2.5 px-3">Soil Moisture</th>
+                  <th className="py-2.5 px-3">Temperature</th>
+                  <th className="py-2.5 px-3">Humidity</th>
+                  <th className="py-2.5 px-3">LDR Light</th>
+                  <th className="py-2.5 px-3">Relays</th>
+                  <th className="py-2.5 px-3">Status</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#F5D8B4]/40">
+                {tableRows.map((row, i) => (
+                  <tr key={i} className={i === 0 ? 'bg-[#E8F7ED]/40 font-semibold' : ''}>
+                    <td className="py-2 px-3 font-mono text-[#667085]">{row.time}</td>
+                    <td className="py-2 px-3 text-[#126B3B] font-bold">{row.soilMoisture}</td>
+                    <td className="py-2 px-3 text-[#DC4545]">{row.temperature}</td>
+                    <td className="py-2 px-3 text-[#078DC1]">{row.humidity}</td>
+                    <td className="py-2 px-3 text-[#E9A23B]">{row.ldr}</td>
+                    <td className="py-2 px-3">R1: {row.relay1 ? 'ON' : 'OFF'} | R2: {row.relay2 ? 'ON' : 'OFF'}</td>
+                    <td className="py-2 px-3"><span className="px-2 py-0.5 rounded bg-[#E8F7ED] text-[#126B3B] font-bold text-[10px]">LIVE</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+
       </div>
     </div>
   );

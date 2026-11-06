@@ -38,126 +38,131 @@ export default function DigitalTwinPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Title & Introduction */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900/80 border border-emerald-800/40 shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-white border border-[#F5D8B4] shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              3D SUBTERRANEAN DIGITAL TWIN
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8F7ED] text-[#159F57] border border-[#159F57]/30">
+              MODULE 3: 3D SUBTERRANEAN DIGITAL TWIN
             </span>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-[#6B7280] font-mono">
               Plot: {currentZoneInfo.name}
             </span>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF0DB] text-[#C26100]">
+              ಬೇರುದೃಷ್ಟಿ 3D
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight mt-1">
             Volumetric Underground Soil & Root Architecture
           </h1>
-          <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-            Simulate and visualize moisture infiltration, subterranean thermal conduction, and soil compaction barriers at 10cm, 20cm, and 30cm depths.
+          <p className="text-sm text-[#6B7280] mt-1 max-w-2xl">
+            Simulate and visualize moisture infiltration, subterranean thermal conduction, and soil compaction barriers at 10cm, 20cm, and 30cm depths in real time.
           </p>
         </div>
       </div>
 
       {/* Main 3D Canvas Box */}
-      <UndergroundDigitalTwin3D
-        digitalTwinData={digitalTwinPayload}
-        selectedLayer={selectedLayer}
-        onSelectLayer={setSelectedLayer}
-        activeMode={twinViewMode}
-        onChangeMode={setTwinViewMode}
-      />
+      <div className="rounded-2xl border border-[#F5D8B4] bg-[#0d1814] overflow-hidden shadow-sm">
+        <UndergroundDigitalTwin3D
+          digitalTwinData={digitalTwinPayload}
+          selectedLayer={selectedLayer}
+          onSelectLayer={setSelectedLayer}
+          activeMode={twinViewMode}
+          onChangeMode={setTwinViewMode}
+        />
+      </div>
 
       {/* Layer Depth Detail Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Layer 1 */}
-        <div className={`p-5 rounded-2xl border transition-all ${selectedLayer === '10cm' ? 'bg-emerald-950/40 border-emerald-400 shadow-xl' : 'bg-slate-900/70 border-slate-800'}`}>
+        <div className={`p-5 rounded-2xl border transition-all ${selectedLayer === '10cm' ? 'bg-[#E8F7ED] border-[#159F57] shadow-md' : 'bg-white border-[#F5D8B4] shadow-sm'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Horizon A (0 - 10 cm)</span>
-            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Topsoil</span>
+            <span className="text-xs font-bold text-[#159F57] uppercase tracking-wider">Horizon A (0 - 10 cm)</span>
+            <span className="text-xs bg-[#FFF0DB] text-[#C26100] px-2 py-0.5 rounded-full font-medium">Topsoil</span>
           </div>
-          <h3 className="text-lg font-bold text-white mt-1">Organic Feeder Zone</h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <h3 className="text-lg font-bold text-[#172033] mt-1">Organic Feeder Zone</h3>
+          <p className="text-xs text-[#6B7280] mt-1">
             High biological activity, fine capillary root clusters, initial rainfall and irrigation absorption surface.
           </p>
-          <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2 text-xs">
+          <div className="mt-4 pt-3 border-t border-[#F5D8B4]/60 space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Moisture:</span>
-              <strong className="text-white font-mono">{readings.layer_10cm.moisture}% VWC</strong>
+              <span className="text-[#6B7280]">Moisture:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_10cm.moisture}% VWC</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Subsurface Temp:</span>
-              <strong className="text-white font-mono">{readings.layer_10cm.temp}°C</strong>
+              <span className="text-[#6B7280]">Subsurface Temp:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_10cm.temp}°C</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Soil Compaction:</span>
-              <strong className="text-white font-mono">{readings.layer_10cm.compaction} kPa</strong>
+              <span className="text-[#6B7280]">Soil Compaction:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_10cm.compaction} kPa</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Salinity EC:</span>
-              <strong className="text-white font-mono">{readings.layer_10cm.ec} dS/m</strong>
+              <span className="text-[#6B7280]">Salinity EC:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_10cm.ec} dS/m</strong>
             </div>
           </div>
         </div>
 
         {/* Layer 2 */}
-        <div className={`p-5 rounded-2xl border transition-all ${selectedLayer === '20cm' ? 'bg-emerald-950/40 border-emerald-400 shadow-xl' : 'bg-slate-900/70 border-slate-800'}`}>
+        <div className={`p-5 rounded-2xl border transition-all ${selectedLayer === '20cm' ? 'bg-[#E8F7ED] border-[#159F57] shadow-md' : 'bg-white border-[#F5D8B4] shadow-sm'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-teal-400 uppercase tracking-wider">Horizon B1 (10 - 20 cm)</span>
-            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Mid Root</span>
+            <span className="text-xs font-bold text-[#078DC1] uppercase tracking-wider">Horizon B1 (10 - 20 cm)</span>
+            <span className="text-xs bg-[#DDF3FA] text-[#078DC1] px-2 py-0.5 rounded-full font-medium">Mid Root</span>
           </div>
-          <h3 className="text-lg font-bold text-white mt-1">Primary Lateral Root Zone</h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <h3 className="text-lg font-bold text-[#172033] mt-1">Primary Lateral Root Zone</h3>
+          <p className="text-xs text-[#6B7280] mt-1">
             Major structural root branching, prime location for plough-pan compaction barriers and perched water tables.
           </p>
-          <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2 text-xs">
+          <div className="mt-4 pt-3 border-t border-[#F5D8B4]/60 space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Moisture:</span>
-              <strong className="text-white font-mono">{readings.layer_20cm.moisture}% VWC</strong>
+              <span className="text-[#6B7280]">Moisture:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_20cm.moisture}% VWC</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Subsurface Temp:</span>
-              <strong className="text-white font-mono">{readings.layer_20cm.temp}°C</strong>
+              <span className="text-[#6B7280]">Subsurface Temp:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_20cm.temp}°C</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Soil Compaction:</span>
-              <strong className={`font-mono ${readings.layer_20cm.compaction > 2000 ? 'text-rose-400 font-bold' : 'text-white'}`}>
+              <span className="text-[#6B7280]">Soil Compaction:</span>
+              <strong className={`font-mono ${readings.layer_20cm.compaction > 2000 ? 'text-rose-600 font-bold' : 'text-[#172033]'}`}>
                 {readings.layer_20cm.compaction} kPa
               </strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Salinity EC:</span>
-              <strong className="text-white font-mono">{readings.layer_20cm.ec} dS/m</strong>
+              <span className="text-[#6B7280]">Salinity EC:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_20cm.ec} dS/m</strong>
             </div>
           </div>
         </div>
 
         {/* Layer 3 */}
-        <div className={`p-5 rounded-2xl border transition-all ${selectedLayer === '30cm' ? 'bg-emerald-950/40 border-emerald-400 shadow-xl' : 'bg-slate-900/70 border-slate-800'}`}>
+        <div className={`p-5 rounded-2xl border transition-all ${selectedLayer === '30cm' ? 'bg-[#E8F7ED] border-[#159F57] shadow-md' : 'bg-white border-[#F5D8B4] shadow-sm'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Horizon B2 (20 - 30 cm)</span>
-            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Subsoil</span>
+            <span className="text-xs font-bold text-[#126B3B] uppercase tracking-wider">Horizon B2 (20 - 30 cm)</span>
+            <span className="text-xs bg-[#E8F7ED] text-[#126B3B] px-2 py-0.5 rounded-full font-medium">Subsoil</span>
           </div>
-          <h3 className="text-lg font-bold text-white mt-1">Deep Taproot Reservoir</h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <h3 className="text-lg font-bold text-[#172033] mt-1">Deep Taproot Reservoir</h3>
+          <p className="text-xs text-[#6B7280] mt-1">
             Thermal buffer layer and ultimate drought resilience anchor; critical indicator of deep soil moisture drought.
           </p>
-          <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2 text-xs">
+          <div className="mt-4 pt-3 border-t border-[#F5D8B4]/60 space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Moisture:</span>
-              <strong className={`font-mono ${readings.layer_30cm.moisture < 20 ? 'text-rose-400 font-bold' : 'text-white'}`}>
+              <span className="text-[#6B7280]">Moisture:</span>
+              <strong className={`font-mono ${readings.layer_30cm.moisture < 20 ? 'text-rose-600 font-bold' : 'text-[#172033]'}`}>
                 {readings.layer_30cm.moisture}% VWC
               </strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Subsurface Temp:</span>
-              <strong className="text-white font-mono">{readings.layer_30cm.temp}°C</strong>
+              <span className="text-[#6B7280]">Subsurface Temp:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_30cm.temp}°C</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Soil Compaction:</span>
-              <strong className="text-white font-mono">{readings.layer_30cm.compaction} kPa</strong>
+              <span className="text-[#6B7280]">Soil Compaction:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_30cm.compaction} kPa</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Salinity EC:</span>
-              <strong className="text-white font-mono">{readings.layer_30cm.ec} dS/m</strong>
+              <span className="text-[#6B7280]">Salinity EC:</span>
+              <strong className="text-[#172033] font-mono">{readings.layer_30cm.ec} dS/m</strong>
             </div>
           </div>
         </div>
@@ -165,4 +170,3 @@ export default function DigitalTwinPage() {
     </div>
   );
 }
-

@@ -70,19 +70,22 @@ export default function SoilIntelligencePage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Banner */}
-      <div className="p-6 rounded-3xl bg-slate-900/80 border border-emerald-800/40 shadow-xl">
+      <div className="p-6 rounded-2xl bg-white border border-[#F5D8B4] shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8F7ED] text-[#159F57] border border-[#159F57]/30">
             MODULE 2: AI SOIL STRESS ENGINE
           </span>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-[#6B7280] font-mono">
             Plot: {currentZoneInfo.name}
           </span>
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF0DB] text-[#C26100]">
+            RhizoAI ತಪಾಸಣೆ
+          </span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight mt-1">
           AI Hidden Soil Stress Detection & Diagnostics
         </h1>
-        <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+        <p className="text-sm text-[#6B7280] mt-1 max-w-2xl">
           Multi-layer algorithmic stress detection classifying invisible underground conditions before vegetative foliage manifests damage.
         </p>
       </div>
@@ -92,14 +95,14 @@ export default function SoilIntelligencePage() {
         {stressChecks.map((sc, i) => (
           <div
             key={i}
-            className={`p-5 rounded-2xl border shadow-xl flex flex-col justify-between ${
+            className={`p-5 rounded-2xl border shadow-sm flex flex-col justify-between ${
               sc.status === 'RED'
-                ? 'bg-rose-950/20 border-rose-800/60'
+                ? 'bg-rose-50 border-rose-200'
                 : sc.status === 'ORANGE'
-                ? 'bg-orange-950/20 border-orange-800/60'
+                ? 'bg-orange-50 border-orange-200'
                 : sc.status === 'YELLOW'
-                ? 'bg-amber-950/20 border-amber-800/60'
-                : 'bg-emerald-950/20 border-emerald-800/50'
+                ? 'bg-amber-50 border-amber-200'
+                : 'bg-white border-[#F5D8B4]'
             }`}
           >
             <div>
@@ -107,19 +110,26 @@ export default function SoilIntelligencePage() {
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                   sc.status === 'RED' ? 'bg-rose-500 text-white' :
                   sc.status === 'ORANGE' ? 'bg-orange-500 text-white' :
-                  sc.status === 'YELLOW' ? 'bg-amber-500 text-black' :
-                  'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  sc.status === 'YELLOW' ? 'bg-amber-500 text-white' :
+                  'bg-[#E8F7ED] text-[#159F57] border border-[#159F57]/40'
                 }`}>
-                  {sc.score.replace('_', ' ')}
+                  {sc.score.replace(/_/g, ' ')}
                 </span>
-                <span className="text-xs font-mono text-slate-400">{sc.status} RISK</span>
+                <span className={`text-xs font-mono font-bold ${
+                  sc.status === 'RED' ? 'text-rose-600' :
+                  sc.status === 'ORANGE' ? 'text-orange-600' :
+                  sc.status === 'YELLOW' ? 'text-amber-600' :
+                  'text-[#159F57]'
+                }`}>
+                  {sc.status} RISK
+                </span>
               </div>
-              <h3 className="text-base font-bold text-white mt-2.5">{sc.name}</h3>
-              <p className="text-xs text-slate-300 font-mono mt-2 bg-black/30 p-2 rounded-lg">
-                <strong>Evidence:</strong> {sc.evidence}
+              <h3 className="text-base font-bold text-[#172033] mt-2.5">{sc.name}</h3>
+              <p className="text-xs text-[#172033] font-mono mt-2 bg-white/80 border border-[#F5D8B4] p-2 rounded-lg">
+                <strong className="text-[#159F57]">Evidence:</strong> {sc.evidence}
               </p>
             </div>
-            <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-white/5 leading-relaxed">
+            <p className="text-xs text-[#6B7280] mt-3 pt-3 border-t border-[#F5D8B4]/60 leading-relaxed">
               {sc.detail}
             </p>
           </div>
@@ -127,21 +137,21 @@ export default function SoilIntelligencePage() {
       </div>
 
       {/* Active AI Alerts & Action Prescriptions */}
-      <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-4">
+      <div className="p-6 rounded-2xl bg-white border border-[#F5D8B4] shadow-sm space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-base font-bold text-[#172033] flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-[#159F57]" />
             Active Agronomic Explanations & Corrective Prescriptions ({alerts.length})
           </h3>
-          <span className="text-xs text-slate-400">Scientifically Grounded Engine</span>
+          <span className="text-xs text-[#6B7280]">Scientifically Grounded Engine</span>
         </div>
 
         <div className="space-y-3">
           {alerts.length === 0 ? (
-            <div className="p-8 text-center text-emerald-400 bg-emerald-950/20 rounded-2xl border border-emerald-800/30 flex flex-col items-center justify-center">
-              <CheckCircle2 className="w-10 h-10 mb-2 text-emerald-400" />
-              <p className="font-bold text-sm">All Underground Parameters Within Optimal Thresholds</p>
-              <p className="text-xs text-slate-400 mt-1">
+            <div className="p-8 text-center text-[#159F57] bg-[#E8F7ED] rounded-xl border border-[#159F57]/30 flex flex-col items-center justify-center">
+              <CheckCircle2 className="w-10 h-10 mb-2 text-[#159F57]" />
+              <p className="font-bold text-sm text-[#172033]">All Underground Parameters Within Optimal Thresholds</p>
+              <p className="text-xs text-[#6B7280] mt-1">
                 Capillary moisture balance, penetrometer resistance, and thermal gradients are fully healthy.
               </p>
             </div>
@@ -149,24 +159,24 @@ export default function SoilIntelligencePage() {
             alerts.map((alt, i) => (
               <div
                 key={i}
-                className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2 hover:border-slate-700 transition-all"
+                className="p-4 rounded-xl bg-[#FFF9F1] border border-[#F5D8B4] space-y-2 hover:border-[#159F57] transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className={`w-4 h-4 ${alt.severity === 'CRITICAL' ? 'text-rose-400' : 'text-amber-400'}`} />
-                    <span className="font-bold text-sm text-white">{alt.title}</span>
+                    <AlertTriangle className={`w-4 h-4 ${alt.severity === 'CRITICAL' ? 'text-rose-600' : 'text-amber-600'}`} />
+                    <span className="font-bold text-sm text-[#172033]">{alt.title}</span>
                   </div>
-                  <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-700/50 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-mono text-[#159F57] bg-[#E8F7ED] border border-[#159F57]/30 px-2 py-0.5 rounded-full">
                     Confidence: {(alt.confidence * 100).toFixed(0)}%
                   </span>
                 </div>
-                <div className="text-xs text-slate-300 font-mono">
-                  <strong>Sensor Evidence:</strong> {alt.evidence}
+                <div className="text-xs text-[#172033] font-mono">
+                  <strong className="text-[#078DC1]">Sensor Evidence:</strong> {alt.evidence}
                 </div>
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-[#6B7280]">
                   <strong>Biological Cause:</strong> {alt.cause}
                 </div>
-                <div className="p-2.5 bg-emerald-950/30 rounded-xl border border-emerald-800/40 text-xs text-emerald-300">
+                <div className="p-2.5 bg-[#E8F7ED] rounded-lg border border-[#159F57]/30 text-xs text-[#126B3B]">
                   <strong>Agronomic Prescription:</strong> {alt.recommendation}
                 </div>
               </div>
@@ -177,4 +187,3 @@ export default function SoilIntelligencePage() {
     </div>
   );
 }
-

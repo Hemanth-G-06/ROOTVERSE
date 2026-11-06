@@ -55,27 +55,30 @@ export default function RootNetZonesPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900/80 border border-emerald-800/40 shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-white border border-[#F5D8B4] shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8F7ED] text-[#159F57] border border-[#159F57]/30">
               MODULE 6: ROOTNET
             </span>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-[#6B7280] font-mono">
               Multi-Zone Soil Intelligence Network
             </span>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF0DB] text-[#C26100]">
+              ಬೇರುನೆಟ್ ವಲಯಗಳು
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight mt-1">
             Agricultural Field Zones & Multi-Depth Nodes
           </h1>
-          <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+          <p className="text-sm text-[#6B7280] mt-1 max-w-2xl">
             Monitor and contrast spatial soil stratification, crop root profiles, and compaction barriers across all registered plots.
           </p>
         </div>
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 self-start md:self-auto"
+          className="px-4 py-2.5 rounded-xl bg-[#159F57] hover:bg-[#126B3B] text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 self-start md:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Register New Zone</span>
@@ -88,44 +91,44 @@ export default function RootNetZonesPage() {
           <div
             key={z.id}
             onClick={() => setActiveZone(z.id)}
-            className={`p-6 rounded-3xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-6 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
               z.id === activeZone
-                ? 'bg-emerald-950/40 border-emerald-500 shadow-2xl scale-[1.02]'
-                : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
+                ? 'bg-[#E8F7ED] border-[#159F57] shadow-md scale-[1.02]'
+                : 'bg-white border-[#F5D8B4] hover:border-[#159F57]/50 shadow-sm'
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono text-emerald-400 uppercase font-bold">
+                <span className="text-xs font-mono text-[#159F57] uppercase font-bold">
                   {z.id.toUpperCase()}
                 </span>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  z.riskLevel === 'GREEN' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
-                  z.riskLevel === 'YELLOW' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
-                  'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  z.riskLevel === 'GREEN' ? 'bg-[#E8F7ED] text-[#159F57] border border-[#159F57]/40' :
+                  z.riskLevel === 'YELLOW' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                  'bg-rose-100 text-rose-700 border border-rose-300'
                 }`}>
-                  {z.healthScore || 85} / 100
+                  Health: {z.healthScore || 85} / 100
                 </span>
               </div>
 
-              <h3 className="text-base font-bold text-white mt-2">{z.name}</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Crop: <strong className="text-slate-300">{z.crop}</strong></p>
-              <p className="text-xs text-slate-400">Soil: <strong className="text-slate-300">{z.soilType}</strong></p>
+              <h3 className="text-base font-bold text-[#172033] mt-2">{z.name}</h3>
+              <p className="text-xs text-[#6B7280] mt-0.5">Crop: <strong className="text-[#172033]">{z.crop}</strong></p>
+              <p className="text-xs text-[#6B7280]">Soil: <strong className="text-[#172033]">{z.soilType}</strong></p>
 
               {/* Subsurface Horizon Badges */}
-              <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-800">
-                <div className="p-2 bg-slate-950 rounded-xl">
-                  <span className="text-[10px] text-slate-500 block">Top (10cm)</span>
-                  <span className="text-xs font-bold font-mono text-white">{z.topMoisture || 38}%</span>
+              <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-[#F5D8B4]/60">
+                <div className="p-2 bg-[#FFF9F1] rounded-lg border border-[#F5D8B4]">
+                  <span className="text-[10px] text-[#6B7280] block">Top (10cm)</span>
+                  <span className="text-xs font-bold font-mono text-[#159F57]">{z.topMoisture || 38}% VWC</span>
                 </div>
-                <div className="p-2 bg-slate-950 rounded-xl">
-                  <span className="text-[10px] text-slate-500 block">Deep (30cm)</span>
-                  <span className="text-xs font-bold font-mono text-white">{z.deepMoisture || 35}%</span>
+                <div className="p-2 bg-[#FFF9F1] rounded-lg border border-[#F5D8B4]">
+                  <span className="text-[10px] text-[#6B7280] block">Deep (30cm)</span>
+                  <span className="text-xs font-bold font-mono text-[#078DC1]">{z.deepMoisture || 35}% VWC</span>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-emerald-400 font-semibold">
+            <div className="mt-4 pt-3 border-t border-[#F5D8B4]/60 flex items-center justify-between text-xs text-[#159F57] font-semibold">
               <span>{z.id === activeZone ? 'Currently Selected' : 'Select Zone'}</span>
               <ArrowRight className="w-4 h-4" />
             </div>
@@ -135,40 +138,40 @@ export default function RootNetZonesPage() {
 
       {/* Modal to Register Field Zone */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl">
-            <h2 className="text-lg font-bold text-white">Register New Agricultural Field Zone</h2>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-[#F5D8B4] rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-xl">
+            <h2 className="text-lg font-bold text-[#172033]">Register New Agricultural Field Zone</h2>
             <form onSubmit={handleCreateZone} className="space-y-3">
               <div>
-                <label className="text-xs text-slate-300 block mb-1">Zone Name</label>
+                <label className="text-xs text-[#172033] font-medium block mb-1">Zone Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. West Vineyard Block 4"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-950 text-slate-200 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full bg-[#FFF9F1] text-[#172033] border border-[#F5D8B4] rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-[#159F57] outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-300 block mb-1">Crop Variety</label>
+                  <label className="text-xs text-[#172033] font-medium block mb-1">Crop Variety</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Pinot Noir Grape"
                     value={formData.crop}
                     onChange={(e) => setFormData({ ...formData, crop: e.target.value })}
-                    className="w-full bg-slate-950 text-slate-200 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-[#FFF9F1] text-[#172033] border border-[#F5D8B4] rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-[#159F57] outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-300 block mb-1">Soil Texture</label>
+                  <label className="text-xs text-[#172033] font-medium block mb-1">Soil Texture</label>
                   <select
                     value={formData.soilType}
                     onChange={(e) => setFormData({ ...formData, soilType: e.target.value })}
-                    className="w-full bg-slate-950 text-slate-200 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-[#FFF9F1] text-[#172033] border border-[#F5D8B4] rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-[#159F57] outline-none"
                   >
                     <option value="Sandy Loam">Sandy Loam</option>
                     <option value="Clay Loam">Clay Loam</option>
@@ -180,22 +183,22 @@ export default function RootNetZonesPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-300 block mb-1">Root Depth (cm)</label>
+                  <label className="text-xs text-[#172033] font-medium block mb-1">Root Depth (cm)</label>
                   <input
                     type="number"
                     value={formData.rootDepthCm}
                     onChange={(e) => setFormData({ ...formData, rootDepthCm: e.target.value })}
-                    className="w-full bg-slate-950 text-slate-200 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-[#FFF9F1] text-[#172033] border border-[#F5D8B4] rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-[#159F57] outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-300 block mb-1">Area (Hectares)</label>
+                  <label className="text-xs text-[#172033] font-medium block mb-1">Area (Hectares)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={formData.areaHectares}
                     onChange={(e) => setFormData({ ...formData, areaHectares: e.target.value })}
-                    className="w-full bg-slate-950 text-slate-200 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-[#FFF9F1] text-[#172033] border border-[#F5D8B4] rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-[#159F57] outline-none"
                   />
                 </div>
               </div>
@@ -204,14 +207,14 @@ export default function RootNetZonesPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                  className="px-4 py-2 rounded-xl bg-gray-100 text-[#6B7280] text-xs font-semibold hover:bg-gray-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 shadow"
+                  className="px-4 py-2 rounded-xl bg-[#159F57] text-white text-xs font-bold hover:bg-[#126B3B] shadow"
                 >
                   {submitting ? 'Registering...' : 'Save Zone'}
                 </button>
@@ -223,4 +226,3 @@ export default function RootNetZonesPage() {
     </div>
   );
 }
-

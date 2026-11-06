@@ -12,8 +12,9 @@ import VoiceAssistant from './pages/VoiceAssistant';
 import Settings from './pages/Settings';
 import About from './pages/About';
 
-// ── RootPulse 3D pages ─────────────────────────────────────────────────────
+// ── BERUDRISHTI (ಬೇರುದೃಷ್ಟಿ) Core Modules ──────────────────────────────────
 import RootPulseDashboard from './pages/RootPulseDashboard';
+import RootSpherePage from './pages/RootSpherePage';
 import DigitalTwinPage from './pages/DigitalTwinPage';
 import RootVisionPage from './pages/RootVisionPage';
 import SoilIntelligencePage from './pages/SoilIntelligencePage';
@@ -22,9 +23,9 @@ import RootNetZonesPage from './pages/RootNetZonesPage';
 import SoilGuardAnalyticsPage from './pages/SoilGuardAnalyticsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 
-// ── RootPulse context & navbar ─────────────────────────────────────────────
+// ── BERUDRISHTI Context & Navbar ──────────────────────────────────────────
 import { RootPulseProvider } from './context/RootPulseContext';
-import RootPulseNavbar from './components/RootPulseNavbar';
+import BerudrishtiNavbar from './components/BerudrishtiNavbar';
 
 import './App.css';
 
@@ -32,12 +33,14 @@ function App() {
   return (
     <RootPulseProvider>
       <Router>
-        <div className="App" style={{ minHeight: '100vh', backgroundColor: '#0a0f1e', color: '#e2e8f0' }}>
-          <RootPulseNavbar />
-          <main style={{ paddingTop: '70px' }}>
+        <div className="App" style={{ minHeight: '100vh', backgroundColor: '#FFF9F1', color: '#172033' }}>
+          <BerudrishtiNavbar />
+          <main>
             <Routes>
-              {/* ── RootPulse 3D (primary routes) ── */}
+              {/* ── BERUDRISHTI (primary routes) ── */}
               <Route path="/" element={<RootPulseDashboard />} />
+              <Route path="/rootsphere" element={<RootSpherePage />} />
+              <Route path="/sensors" element={<LiveSensorData />} />
               <Route path="/digital-twin" element={<DigitalTwinPage />} />
               <Route path="/rootvision" element={<RootVisionPage />} />
               <Route path="/intelligence" element={<SoilIntelligencePage />} />
@@ -46,9 +49,8 @@ function App() {
               <Route path="/analytics" element={<SoilGuardAnalyticsPage />} />
               <Route path="/assistant" element={<AIAssistantPage />} />
 
-              {/* ── Original ag360 routes (preserved) ── */}
+              {/* ── Original ag360 routes (strictly preserved) ── */}
               <Route path="/home-legacy" element={<Home />} />
-              <Route path="/sensors" element={<LiveSensorData />} />
               <Route path="/disease" element={<DiseaseDetection />} />
               <Route path="/plant" element={<PlantInfo />} />
               <Route path="/farm" element={<MyFarm />} />

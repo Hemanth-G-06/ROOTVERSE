@@ -90,7 +90,9 @@ function normalizePayload(payload) {
     temperature: temp !== null ? +(temp.toFixed(1)) : null,
     humidity: hum !== null ? +(hum.toFixed(1)) : null,
     soilPct: soil !== null ? Math.round(soil) : null,
+    soilMoisture: soil !== null ? Math.round(soil) : null,
     ldrPct: ldr !== null ? Math.round(ldr) : null,
+    lightIntensity: ldr !== null ? Math.round(ldr) : null,
     relay1: r1,
     relay2: r2,
     mqtt: isMqtt,
@@ -198,10 +200,17 @@ function getLatestTelemetry() {
   return latestLiveTelemetry;
 }
 
+function updateFromLiveTelemetry(data) {
+  if (data && typeof data === 'object') {
+    latestLiveTelemetry = { ...latestLiveTelemetry, ...data, timestamp: new Date() };
+  }
+}
+
 module.exports = {
   saveTelemetry,
   normalizePayload,
   sanitizeRawObject,
   getLatestTelemetry,
+  updateFromLiveTelemetry,
   isMeaningfulChange
 };
